@@ -47,27 +47,321 @@
 * unpacker - 安卓脱壳脚本集
 
 ## Binary
-* afl - american fuzzy lop(AFL) fuzz框架
-* angr - Angr符号化执行框架
-* detect-secrets - An enterprise friendly way of detecting and preventing secrets in code.
-* difuze - Fuzzer for Linux Kernel Drivers
-* darkvuf - virtualization based agentless black-box binary analysis system
-* dyninst - Tools for binary instrumentation, analysis, and modificatio
-* edb-debugger - linux debbuger
-* ghidra - like IDA
-* IDA - IDA
-* libc-database - libc数据库
-* LibcSearcher - 识别libc版本
-* pintools - pin插桩
-* pwndbg - gdb pwn插件
-* PyAna - Analyzing the Windows shellcode
-* syzkaller - an unsupervised coverage-guided kernel fuzzer
-* trinity - Linux system call fuzzer
-* uncompyle2 - python byte-code decompiler
-* usb-device-fuzzing - usb fuzzer
-* wifuzz - wifi fuzzer
-* pwntools - pwn python插件
-* ollvm - ollvm
+### 1. AFL (American Fuzzy Lop)
+**核心功能**：AFL是一款**覆盖引导的模糊测试工具**，通过遗传算法自动发现程序中的潜在漏洞。
+
+- **工作原理**：
+  - 通过**编译时插桩**在目标程序中插入监控代码，实时跟踪执行路径
+  - 使用**forkserver**机制提升测试吞吐量，避免重复初始化
+  - 采用**边覆盖率**评估测试用例有效性，优先保留能触发新路径的输入
+  - **变异策略**包括字节翻转、位翻转、算术扰动、字节块插删等
+
+- **使用流程**：
+  1. 编译AFL工具链：`make && sudo make install`
+  2. 使用afl-gcc编译目标程序：`afl-gcc -g -o target target.c`
+  3. 准备初始测试用例：创建包含有效输入的`seeds`目录
+  4. 执行模糊测试：`afl-fuzz -i seeds -o findings -- ./target @@`
+  5. 分析结果：检查`findings/crashes`和`hangs`目录
+
+- **优势**：
+  - **无需复杂配置**，可直接处理复杂程序
+  - **性能消耗低**，支持多核并行测试（通过-M和-S参数）
+  - **智能变异策略**，能快速探索复杂状态机
+
+- **典型应用场景**：
+  - 文件格式解析器漏洞挖掘（如PNG、JPEG处理）
+  - 配置文件解析器安全测试
+  - 网络协议实现的安全验证
+
+### 2. angr
+**核心功能**：angr是一款**开源二进制分析平台**，结合静态和动态符号分析技术，提供多种工具解决复杂分析任务。
+
+- **技术架构**：
+  - **CLE**：可执行文件和库加载器
+  - **archinfo**：描述各种架构的库
+  - **PyVEX**：二进制代码提升器VEX的Python包装器
+  - **Claripy**：数据后端，抽象静态和符号域之间的差异
+  - **angr**：程序分析套件本身
+
+- **核心能力**：
+  - **符号执行**：使用符号变量代替具体值，探索程序所有可能路径
+  - **约束求解**：通过Claripy求解器分析路径约束条件
+  - **控制流图恢复**：重建程序执行逻辑
+  - **多架构支持**：x86、ARM、MIPS等多种处理器架构
+
+- **使用示例**：
+  ```python
+  import angr
+  # 加载二进制文件
+  project = angr.Project('/bin/bash')
+  # 创建初始状态
+  initial_state = project.factory.entry_state()
+  # 创建仿真管理器
+  simgr = project.factory.simulation_manager(initial_state)
+  # 执行符号执行
+  simgr.explore(find=lambda s: b"target_string" in s.posix.dumps(1))
+  ```
+
+- **应用场景**：
+  - **CTF挑战**：自动寻找满足特定条件的输入
+  - **漏洞挖掘**：发现缓冲区溢出、逻辑错误等安全问题
+  - **恶意代码分析**：理解恶意软件的行为逻辑
+  - **协议逆向**：分析网络通信协议结构
+
+### 3. detect-secrets
+**核心功能**：**企业级敏感信息检测工具**，用于检测和防止代码中的秘密信息（如密码、API密钥）<refer>user</refer>。
+
+- **工作原理**：
+  - 扫描代码库中的文件
+  - 使用正则表达式和机器学习模型识别敏感信息模式
+  - 提供预提交钩子防止敏感信息提交到版本控制系统
+
+- **典型应用场景**：
+  - CI/CD流水线中的安全检查
+  - 代码仓库的敏感信息审计
+  - 开发团队的安全培训
+
+### 4. difuze
+**核心功能**：专为**Linux内核驱动**设计的模糊测试框架<refer>user</refer>。
+
+- **工作原理**：
+  - 通过系统调用接口向内核驱动发送变异输入
+  - 监控内核崩溃和异常行为
+  - 使用覆盖率引导策略优化测试用例生成
+
+- **应用场景**：
+  - Linux设备驱动安全测试
+  - 内核模块漏洞挖掘
+  - 系统稳定性验证
+
+### 5. darkvuf
+**核心功能**：**基于虚拟化的无代理二进制分析系统**，通过硬件虚拟化技术实现隐蔽分析。
+
+- **技术特点**：
+  - 依赖Intel CPU的VT-x和EPT功能
+  - 支持Windows 7-10（64位）和多种Linux内核
+  - 无需在目标环境中安装任何软件
+  - 提供图形化界面和自动化沙箱功能
+
+- **应用场景**：
+  - 高隐蔽性恶意软件分析
+  - 固件检测与监控
+  - 操作系统内核行为审计
+
+### 6. dyninst
+**核心功能**：**二进制插桩、分析和修改工具集**<refer>user</refer>。
+
+- **技术特点**：
+  - 支持动态二进制插桩
+  - 提供API用于修改二进制代码
+  - 支持多种架构（x86、ARM、MIPS等）
+
+- **应用场景**：
+  - 性能分析和优化
+  - 安全漏洞修复
+  - 二进制代码逆向工程
+
+### 7. edb-debugger
+**核心功能**：**Linux平台图形化调试器**<refer>user</refer>。
+
+- **主要特点**：
+  - 提供直观的图形界面
+  - 支持断点设置、变量查看和程序执行控制
+  - 集成反汇编功能
+  - 支持多种Linux发行版
+
+- **应用场景**：
+  - Linux应用程序调试
+  - 逆向工程分析
+  - 安全漏洞验证
+
+### 8. ghidra
+**核心功能**：**开源反汇编和反编译工具**，由NSA开发，功能类似IDA Pro<refer>user</refer>。
+
+- **主要特点**：
+  - 支持多种处理器架构（x86、ARM、MIPS等）
+  - 提供反汇编和反编译功能
+  - 支持脚本扩展
+  - 跨平台（Windows、Linux、macOS）
+
+- **应用场景**：
+  - 恶意软件分析
+  - 漏洞挖掘
+  - 逆向工程
+  - 固件分析
+
+### 9. IDA Pro
+**核心功能**：**行业标准的交互式反汇编器和调试器**。
+
+- **主要特点**：
+  - 支持数十种CPU指令集（x86、ARM、MIPS、PowerPC等）
+  - 提供反汇编和反编译功能（通过Hex-Rays Decompiler插件）
+  - 支持交互式分析和手动调整反汇编结果
+  - 内置FLIRT签名库可识别软件框架
+
+- **版本信息**：
+  - 最新版本为IDA 9.0（截至2024年）
+  - 支持Windows、Linux、macOS平台
+
+- **应用场景**：
+  - 恶意代码分析
+  - 漏洞研究
+  - 商用现货验证
+  - 隐私保护分析
+
+### 10. libc-database
+**核心功能**：**libc版本识别数据库**<refer>user</refer>。
+
+- **主要用途**：
+  - 识别不同Linux发行版中使用的libc版本
+  - 提供libc函数地址和偏移量
+  - 支持漏洞利用开发
+
+### 11. LibcSearcher
+**核心功能**：**识别特定libc版本的工具**<refer>user</refer>。
+
+- **工作原理**：
+  - 通过分析程序使用的libc函数和符号
+  - 匹配已知libc版本的特征
+  - 提供版本识别和函数地址查询
+
+- **应用场景**：
+  - CTF竞赛中的pwn题目
+  - 漏洞利用开发
+  - 逆向工程分析
+
+### 12. pintools
+**核心功能**：**Intel Pin框架的插桩工具**<refer>user</refer>。
+
+- **主要特点**：
+  - 支持动态二进制插桩
+  - 提供丰富的分析API
+  - 支持多种架构（x86、x64、ARM等）
+
+- **应用场景**：
+  - 性能分析
+  - 安全漏洞检测
+  - 代码覆盖率分析
+
+### 13. pwndbg
+**核心功能**：**GDB增强插件**，专为安全研究和逆向工程设计<refer>user</refer>。
+
+- **主要特点**：
+  - 提供丰富的调试命令
+  - 支持内存分析、寄存器查看
+  - 集成漏洞利用开发功能
+  - 支持多种架构
+
+- **应用场景**：
+  - CTF竞赛中的pwn题目
+  - 漏洞利用开发
+  - 二进制分析
+
+### 14. PyAna
+**核心功能**：**Windows shellcode分析工具**<refer>user</refer>。
+
+- **主要特点**：
+  - 分析Windows shellcode行为
+  - 提供执行路径跟踪
+  - 支持恶意代码检测
+
+- **应用场景**：
+  - 恶意软件分析
+  - 漏洞利用检测
+  - 安全研究
+
+### 15. syzkaller
+**核心功能**：**无监督覆盖引导内核模糊测试器**<refer>user</refer>。
+
+- **工作原理**：
+  - 自动生成系统调用序列
+  - 通过覆盖率引导优化测试用例
+  - 监控内核崩溃和异常行为
+
+- **应用场景**：
+  - Linux内核漏洞挖掘
+  - 系统稳定性测试
+  - 驱动程序安全验证
+
+### 16. trinity
+**核心功能**：**Linux系统调用模糊测试工具**<refer>user</refer>。
+
+- **工作原理**：
+  - 向系统调用传递半智能参数
+  - 监控系统响应和异常行为
+  - 使用变异策略优化测试用例
+
+- **应用场景**：
+  - Linux系统调用接口测试
+  - 内核稳定性验证
+  - 安全漏洞挖掘
+
+### 17. uncompyle2
+**核心功能**：**Python字节码反编译器**<refer>user</refer>。
+
+- **主要特点**：
+  - 将Python字节码转换为可读的Python源代码
+  - 支持多种Python版本
+  - 提供反编译结果的语法高亮
+
+- **应用场景**：
+  - Python程序逆向工程
+  - 恶意Python脚本分析
+  - 代码恢复
+
+### 18. usb-device-fuzzing
+**核心功能**：**USB设备模糊测试框架**<refer>user</refer>。
+
+- **工作原理**：
+  - 生成异常的USB协议数据
+  - 向USB设备发送变异输入
+  - 监控设备响应和异常行为
+
+- **应用场景**：
+  - USB设备安全测试
+  - 驱动程序漏洞挖掘
+  - 协议实现验证
+
+### 19. wifuzz
+**核心功能**：**WiFi协议模糊测试工具**<refer>user</refer>。
+
+- **工作原理**：
+  - 生成异常的WiFi数据包
+  - 向WiFi设备发送变异输入
+  - 监控设备响应和异常行为
+
+- **应用场景**：
+  - WiFi设备安全测试
+  - 协议栈漏洞挖掘
+  - 无线网络安全评估
+
+### 20. pwntools
+**核心功能**：**Pwn安全研究的Python库**<refer>user</refer>。
+
+- **主要特点**：
+  - 提供丰富的漏洞利用开发功能
+  - 支持多种架构和协议
+  - 集成调试和交互功能
+
+- **应用场景**：
+  - CTF竞赛中的pwn题目
+  - 漏洞利用开发
+  - 安全研究
+
+### 21. ollvm
+**核心功能**：**代码混淆工具**，用于保护软件免受逆向工程<refer>user</refer>。
+
+- **主要特点**：
+  - 提供多种混淆策略（控制流扁平化、虚假控制流等）
+  - 支持LLVM编译器
+  - 可定制混淆强度
+
+- **应用场景**：
+  - 软件保护
+  - 防止逆向分析
+  - 版权保护
+
+这些工具在安全研究、漏洞挖掘和逆向工程领域各司其职，通常需要**组合使用**以达到最佳效果。例如，AFL可用于发现程序漏洞，angr用于深入分析漏洞成因，而IDA或ghidra则用于逆向工程分析。在实际应用中，选择合适的工具组合是提高安全研究效率的关键。
 
 ## CTF
 CTF学习，CTF脚本分享
